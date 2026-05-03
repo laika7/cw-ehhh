@@ -81,7 +81,7 @@
     function getAgeCategory(minutes) {
         if (minutes < 60) return 'менее часа';
         if (minutes < 120) return '1 час';
-        if (minutes < 180) return '2 часа';
+        if (minutes < 240) return '2 часа';
         if (minutes < 1440) {
             const hours = Math.floor(minutes / 60);
             if (hours % 10 === 1 && hours % 100 !== 11) return `${hours} час`;
@@ -142,7 +142,7 @@
                 }
 
                 const ageCategory = getAgeCategory(totalMinutes);
-                const isRed = totalMinutes >= 180;
+                const isRed = totalMinutes >= 120;
                 if (bookingInfo) {
                     marker.title = `Забронировано: ${bookingInfo}\nВремя: ${bookingTime}\nВисит бронь: ${ageCategory}`;
                 } else {
