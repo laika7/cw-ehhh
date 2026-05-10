@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Показ заброненных запросов
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.2
 // @description  Показывает забронированные запросы и пометки к ним с информацией
-// @author       You
+// @author       Мыша
 // @match        https://catwar.su/plak*
 // @match        https://catwar.net/plak*
+// @downloadURL  https://raw.githubusercontent.com/laika7/cw-ehhh/main/script-book.user.js
+// @updateURL    https://raw.githubusercontent.com/laika7/cw-ehhh/main/script-book.user.js
 // @grant        none
 // ==/UserScript==
 
@@ -18,30 +20,43 @@
         const localOffset = -now.getTimezoneOffset() / 60;
         const offsetDiff = mskOffset - localOffset;
         const mskNow = new Date(now.getTime() + offsetDiff * 60 * 60 * 1000);
-        const minuteMatch = timeStr.match(/(\d+)\s*минут/);
-        if (minuteMatch) {
-            return parseInt(minuteMatch[1]);
-        }
+        const currentYear = mskNow.getFullYear();
 
-        const hourMatch = timeStr.match(/(\d+)\s*час/);
-        if (hourMatch) {
-            let hours = parseInt(hourMatch[1]);
-            return hours * 60;
-        }
+        const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
-        const dateMatch = timeStr.match(/(\d+)\s+[а-я]+\s+(\d{4})\s+[в]\s+(\d+):(\d+)/i);
+        let dateMatch = timeStr.match(/(\d+)\s+([а-я]+)\s+(\d{4})\s+[в]\s+(\d+):(\d+)/i);
         if (dateMatch) {
             const day = parseInt(dateMatch[1]);
-            const year = parseInt(dateMatch[2]);
-            const hour = parseInt(dateMatch[3]);
-            const minute = parseInt(dateMatch[4]);
+            const monthName = dateMatch[2];
+            const year = parseInt(dateMatch[3]);
+            const hour = parseInt(dateMatch[4]);
+            const minute = parseInt(dateMatch[5]);
+            const monthIndex = monthNames.findIndex(m => monthName.includes(m));
 
-            const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-            const monthIndex = monthNames.findIndex(m => timeStr.includes(m));
             if (monthIndex !== -1) {
                 const bookedDate = new Date(year, monthIndex, day, hour, minute, 0, 0);
-                const diffMinutes = Math.floor((mskNow - bookedDate) / (1000 * 60));
-                return diffMinutes;
+                let diffMinutes = Math.floor((mskNow - bookedDate) / (1000 * 60));
+                return Math.max(0, diffMinutes);
+            }
+        }
+
+        dateMatch = timeStr.match(/(\d+)\s+([а-я]+)\s+[в]\s+(\d+):(\d+)/i);
+        if (dateMatch) {
+            const day = parseInt(dateMatch[1]);
+            const monthName = dateMatch[2];
+            const hour = parseInt(dateMatch[3]);
+            const minute = parseInt(dateMatch[4]);
+            const monthIndex = monthNames.findIndex(m => monthName.includes(m));
+
+            if (monthIndex !== -1) {
+                let bookedDate = new Date(currentYear, monthIndex, day, hour, minute, 0, 0);
+                let diffMinutes = Math.floor((mskNow - bookedDate) / (1000 * 60));
+
+                if (diffMinutes < 0) {
+                    bookedDate = new Date(currentYear - 1, monthIndex, day, hour, minute, 0, 0);
+                    diffMinutes = Math.floor((mskNow - bookedDate) / (1000 * 60));
+                }
+                return Math.max(0, diffMinutes);
             }
         }
 
@@ -52,13 +67,10 @@
                 const bookedMinute = parseInt(timeMatch[2]);
                 let bookedDate = new Date(mskNow);
                 bookedDate.setHours(bookedHour, bookedMinute, 0, 0);
-
                 if (bookedDate > mskNow) {
                     bookedDate.setDate(bookedDate.getDate() - 1);
                 }
-
-                const diffMinutes = Math.floor((mskNow - bookedDate) / (1000 * 60));
-                return diffMinutes;
+                return Math.floor((mskNow - bookedDate) / (1000 * 60));
             }
         }
 
@@ -68,12 +80,17 @@
                 const bookedHour = parseInt(timeMatch[1]);
                 const bookedMinute = parseInt(timeMatch[2]);
                 let bookedDate = new Date(mskNow);
-                bookedDate.setDate(bookedDate.getDate() - 1);
+                bookedDate.setDate(mskNow.getDate() - 1);
                 bookedDate.setHours(bookedHour, bookedMinute, 0, 0);
-                const diffMinutes = Math.floor((mskNow - bookedDate) / (1000 * 60));
-                return diffMinutes;
+                return Math.floor((mskNow - bookedDate) / (1000 * 60));
             }
         }
+
+        const minuteMatch = timeStr.match(/(\d+)\s*минут/);
+        if (minuteMatch) return parseInt(minuteMatch[1]);
+
+        const hourMatch = timeStr.match(/(\d+)\s*час/);
+        if (hourMatch) return parseInt(hourMatch[1]) * 60;
 
         return 0;
     }
@@ -81,7 +98,7 @@
     function getAgeCategory(minutes) {
         if (minutes < 60) return 'менее часа';
         if (minutes < 120) return '1 час';
-        if (minutes < 240) return '2 часа';
+        if (minutes < 180) return '2 часа';
         if (minutes < 1440) {
             const hours = Math.floor(minutes / 60);
             if (hours % 10 === 1 && hours % 100 !== 11) return `${hours} час`;
